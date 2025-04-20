@@ -1,0 +1,40 @@
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #2563eb; /* blue-600 in light mode */
+}
+
+/* Apply dark mode styles when the parent has dark class */
+:root.dark .form-label {
+  color: #c7d3e2; /* gray-300 in dark mode */
+}
+
+.form-input {
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db; /* gray-300 in light mode */
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  background-color: white;
+  color: #1f2937; /* gray-800 in light mode */
+  transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s;
+}
+
+/* Apply dark mode styles when the parent has dark class */
+:root.dark .form-input {
+  background-color: #1f2937; /* gray-800 in dark mode */
+  border-color: #4b5563; /* gray-600 in dark mode */
+  color: #f3f4f6; /* gray-100 in dark mode */
+}
+
+.form-input:focus {
+  border-color: #3b82f6; /* blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  outline: none;
+}

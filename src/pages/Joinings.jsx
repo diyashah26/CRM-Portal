@@ -1,0 +1,1071 @@
+import React, { useState, useEffect } from "react";
+import { MdPerson, MdWork, MdCalendarToday, MdBusinessCenter, MdPhone, MdAdd, MdCancel, MdEdit, MdVisibility, MdSave, MdAssignmentTurnedIn } from "react-icons/md";
+import { IoCashOutline } from "react-icons/io5";
+import { FaTimes, FaPlus, FaSearch, FaCalendarAlt, FaFilter, FaTimesCircle } from "react-icons/fa";
+import { MdClear } from "react-icons/md";
+
+function Joinings() {
+  const [darkMode, setDarkMode] = useState(false);
+  const [joinings, setJoinings] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [viewingJoining, setViewingJoining] = useState(null);
+  const [formData, setFormData] = useState({
+    candidateName: "",
+    contactNumber: "",
+    company: "",
+    process: "",
+    salary: "",
+    joiningDate: "",
+    status: ""
+  });
+  
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Add filter state
+  const [filters, setFilters] = useState({
+    company: "",
+    process: "",
+    status: ""
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilterType, setDateFilterType] = useState("day"); // 'day', 'month', 'year'
+  const [dateRangeStart, setDateRangeStart] = useState("");
+  const [dateRangeEnd, setDateRangeEnd] = useState("");
+
+  // Handle filter changes
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      company: "",
+      process: "",
+      status: ""
+    });
+    setDateRangeStart("");
+    setDateRangeEnd("");
+    setSearchQuery("");
+  };
+  
+  // Load data from localStorage on initial load
+  useEffect(() => {
+    const savedJoinings = localStorage.getItem("joinings");
+    
+    if (savedJoinings) {
+      try {
+        const parsedJoinings = JSON.parse(savedJoinings);
+        // Sort joinings by id in descending order (newest first)
+        const sortedJoinings = parsedJoinings.sort((a, b) => b.id - a.id);
+        setJoinings(sortedJoinings);
+      } catch (error) {
+        console.error("Error parsing saved joinings:", error);
+        setJoinings([]);
+      }
+    } else {
+      setJoinings([]);
+    }
+  }, []);
+  
+  // Filter joinings with updated logic
+  const filteredJoinings = joinings.filter(joining => {
+    // Search query filtering
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = searchQuery === "" || 
+      joining.candidateName.toLowerCase().includes(query) ||
+      joining.contactNumber.includes(query) ||
+      (joining.company && joining.company.toLowerCase().includes(query)) ||
+      (joining.process && joining.process.toLowerCase().includes(query));
+
+    // Basic filters
+    const matchesCompany = filters.company === "" || joining.company === filters.company;
+    const matchesProcess = filters.process === "" || joining.process === filters.process;
+    const matchesStatus = filters.status === "" || joining.status === filters.status;
+    
+    // Date range filtering
+    let matchesDateRange = true;
+    
+    if (joining.joiningDate && dateRangeStart && dateRangeEnd) {
+      const joiningDate = new Date(joining.joiningDate);
+      
+      let startDate, endDate;
+      
+      if (dateFilterType === 'day') {
+        startDate = new Date(dateRangeStart);
+        endDate = new Date(dateRangeEnd);
+        endDate.setHours(23, 59, 59, 999);
+      } else if (dateFilterType === 'month') {
+        const [startYear, startMonth] = dateRangeStart.split('-');
+        const [endYear, endMonth] = dateRangeEnd.split('-');
+        
+        startDate = new Date(parseInt(startYear), parseInt(startMonth) - 1, 1);
+        endDate = new Date(parseInt(endYear), parseInt(endMonth), 0, 23, 59, 59, 999);
+      } else { // year
+        startDate = new Date(parseInt(dateRangeStart), 0, 1);
+        endDate = new Date(parseInt(dateRangeEnd), 11, 31, 23, 59, 59, 999);
+      }
+      
+      matchesDateRange = joiningDate >= startDate && joiningDate <= endDate;
+    }
+    
+    return matchesSearch && matchesCompany && matchesProcess && matchesStatus && matchesDateRange;
+  });
+
+  // Check for user's preferred theme and watch for changes
+  useEffect(() => {
+    // Initial theme setup
+    const updateThemeState = () => {
+      const isDark = localStorage.theme === 'dark' || 
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      setDarkMode(isDark);
+    };
+
+    // Update on mount
+    updateThemeState();
+
+    // Listen for theme changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'theme') {
+        updateThemeState();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Additional event listener for theme changes from other components
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class' && 
+            mutation.target === document.documentElement) {
+          updateThemeState();
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      observer.disconnect();
+    };
+  }, []);
+
+  const clientOptions = [
+    { value: "", label: "Select Client" },
+    { value: "altruist_airtel_black", label: "Altruist- Airtel Black" },
+    { value: "altruist_airtel_broadband", label: "Altruist- Airtel Broadband" },
+    { value: "altruist_ipru", label: "Altruist -IPru" },
+    { value: "lombard_crt", label: "Lombard - CRT" },
+    { value: "lombard_sales", label: "Lombard - Sales" },
+    { value: "qconnect_myntra", label: "Qconnect - Myntra" },
+    { value: "qconnect_others", label: "Qconnect - Others" },
+    { value: "qconnect_swiggy", label: "Qconnect - Swiggy" },
+    { value: "taskus_doordash_blended", label: "TaskUs - Doordarsh Blended" },
+    { value: "taskus_doordash_voice", label: "TaskUs - Doordash Voice" },
+    { value: "taskus_others", label: "TaskUs - Others" },
+    { value: "taskus_vivint", label: "TaskUs - Vivint" },
+    { value: "tp_asus", label: "TP - Asus" },
+    { value: "tp_fk_l2", label: "TP- FK L2" },
+    { value: "tp_flipkart_domestic", label: "TP - Flipkart Domestic" },
+    { value: "tp_instacart_chat", label: "TP - Instacart Chat" },
+    { value: "tp_instacart_email", label: "TP - Instacart Email" },
+    { value: "tp_instacart_voice", label: "TP- Instacart Voice" },
+    { value: "tp_mastercard_b2b", label: "TP-Mastercard B2B" },
+    { value: "tp_mastercard_b2c", label: "TP - Mastercard B2C" },
+    { value: "tp_others", label: "TP - Others" },
+    { value: "tp_pg", label: "TP- P&G" },
+    { value: "tp_western_union_chat", label: "TP-Western Union Chat" },
+    { value: "tp_western_union_voice", label: "TP - Western Union Voice" },
+    { value: "tp_xaomi", label: "TP - Xaomi" },
+    { value: "others", label: "Others" }
+  ];
+
+  const companyOptions = [
+    { value: "", label: "Select Company" },
+    { value: "teleperformance", label: "Teleperformance" },
+    { value: "taskus", label: "TaskUs" },
+    { value: "lombard", label: "Lombard" },
+    { value: "qconnect", label: "Qconnect" },
+    { value: "altruist", label: "Altruist" },
+    { value: "annova", label: "Annova" },
+    { value: "others", label: "Others" }
+  ];
+
+  const processOptions = [
+    { value: "", label: "Select Process" },
+    { value: "airtel_black", label: "Airtel Black" },
+    { value: "airtel_broadband", label: "Airtel Broadband" },
+    { value: "crt", label: "CRT" },
+    { value: "e_channel_sales", label: "E-Channel Sales" },
+    { value: "flipkart_l2", label: "Flipkart L2" },
+    { value: "flipkart_seller_support", label: "Flipkart Seller Support" },
+    { value: "instacart_chat", label: "Instacart Chat" },
+    { value: "instacart_email", label: "Instacart Email" },
+    { value: "instacart_voice", label: "Instacart Voice" },
+    { value: "mastercard_b2b", label: "Mastercard B2B" },
+    { value: "mastercard_b2c", label: "Mastercard B2C" },
+    { value: "myntra_chat", label: "Myntra Chat" },
+    { value: "myntra_voice", label: "Myntra Voice" },
+    { value: "p&g", label: "P&G" },
+    { value: "presto", label: "Presto" },
+    { value: "swiggy_chat", label: "Swiggy Chat" },
+    { value: "swiggy_voice", label: "Swiggy Voice" },
+    { value: "temu", label: "Temu" },
+    { value: "vivint", label: "Vivint" },
+    { value: "xaomi", label: "Xaomi" },
+    { value: "asus", label: "Asus" },
+    { value: "doordash", label: "Doordash" },
+    { value: "frontier", label: "Frontier" },
+    { value: "western_union_chat", label: "Western Union Chat" },
+    { value: "western_union_voice", label: "Western Union Voice" },
+    { value: "others", label: "Others" }
+  ];
+
+  const statusOptions = [
+    { value: "", label: "All Status" },
+    { value: "joining_details_received", label: "Joining Details Received" },
+    { value: "not_received", label: "Not Received" }
+  ];
+
+  const monthOptions = [
+    { value: "", label: "Select Month" },
+    { value: "01", label: "January" },
+    { value: "02", label: "February" },
+    { value: "03", label: "March" },
+    { value: "04", label: "April" },
+    { value: "05", label: "May" },
+    { value: "06", label: "June" },
+    { value: "07", label: "July" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" }
+  ];
+
+  // Generate year options from 2020 to current year + 2
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [{ value: "", label: "Select Year" }];
+  for (let year = 2020; year <= currentYear + 2; year++) {
+    yearOptions.push({ value: year.toString(), label: year.toString() });
+  }
+
+  // Generate date options 1-31
+  const dateOptions = [{ value: "", label: "Select Date" }];
+  for (let date = 1; date <= 31; date++) {
+    const dateValue = date < 10 ? `0${date}` : `${date}`;
+    dateOptions.push({ value: dateValue, label: dateValue });
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Handle validation for specific fields
+    if (name === "contactNumber") {
+      // Allow only numbers and limit to 10 digits
+      const numbersOnly = value.replace(/[^\d]/g, '');
+      setFormData(prev => ({ ...prev, [name]: numbersOnly }));
+    } else if (name === "salary") {
+      // Allow only numbers for salary
+      const numbersOnly = value.replace(/[^\d]/g, '');
+      setFormData(prev => ({ ...prev, [name]: numbersOnly }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.candidateName || !formData.contactNumber || !formData.company || 
+        !formData.process || !formData.joiningDate || !formData.status) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    // Validate phone number must be exactly 10 digits
+    if (formData.contactNumber.length !== 10) {
+      alert("Contact number must be exactly 10 digits");
+      return;
+    }
+
+    let updatedJoinings;
+    if (editingId !== null) {
+      // Update existing
+      updatedJoinings = joinings.map(joining => 
+        joining.id === editingId ? { ...formData, id: editingId } : joining
+      );
+      setJoinings(updatedJoinings);
+      setEditingId(null);
+    } else {
+      // Add new
+      const newJoining = {
+        ...formData,
+        client: "",
+        id: Date.now()
+      };
+      updatedJoinings = [newJoining, ...joinings];
+      setJoinings(updatedJoinings);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem("joinings", JSON.stringify(updatedJoinings));
+
+    // Reset form
+    setFormData({
+      candidateName: "",
+      contactNumber: "",
+      company: "",
+      process: "",
+      salary: "",
+      joiningDate: "",
+      status: ""
+    });
+    setShowForm(false);
+  };
+
+  const handleEdit = (id) => {
+    const joiningToEdit = joinings.find(joining => joining.id === id);
+    if (joiningToEdit) {
+      setFormData({
+        candidateName: joiningToEdit.candidateName || "",
+        contactNumber: joiningToEdit.contactNumber || "",
+        company: joiningToEdit.company || "",
+        process: joiningToEdit.process || "",
+        salary: joiningToEdit.salary || "",
+        joiningDate: joiningToEdit.joiningDate || "",
+        status: joiningToEdit.status || ""
+      });
+      setEditingId(id);
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleView = (joining) => {
+    setViewingJoining(joining);
+    setShowViewModal(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this joining?")) {
+      const updatedJoinings = joinings.filter(joining => joining.id !== id);
+      setJoinings(updatedJoinings);
+      // Save to localStorage
+      localStorage.setItem("joinings", JSON.stringify(updatedJoinings));
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      candidateName: "",
+      contactNumber: "",
+      company: "",
+      process: "",
+      salary: "",
+      joiningDate: "",
+      status: ""
+    });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  // Get display name from value
+  const getDisplayName = (options, value) => {
+    const option = options.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
+
+  // Function to get appropriate color for status badges
+  const getStatusColor = (status) => {
+    if (status === "joining_details_received") {
+      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+    } else if (status === "not_received") {
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+    } else {
+      return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+    }
+  };
+
+  // Create a separate view modal component
+  const ViewModal = () => {
+    if (!viewingJoining) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center">
+        <div className={`relative max-w-2xl mx-auto p-6 rounded-xl shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} w-full m-4`}>
+          <button 
+            onClick={() => setShowViewModal(false)} 
+            className={`absolute top-4 right-4 ${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+          
+          <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-[#e2692c]' : 'text-[#1a5d96]'}`}>
+            Candidate Details
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-[#e2692c]' : 'text-[#1a5d96]'}`}>
+                Basic Information
+              </h3>
+              <dl className="space-y-2">
+                <div className="flex flex-col">
+                  <dt className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Name</dt>
+                  <dd className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {viewingJoining.candidateName}
+                  </dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Contact Number</dt>
+                  <dd className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {viewingJoining.contactNumber}
+                  </dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Company</dt>
+                  <dd className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {getDisplayName(companyOptions, viewingJoining.company)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            
+            <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-[#e2692c]' : 'text-[#1a5d96]'}`}>
+                Job Details
+              </h3>
+              <dl className="space-y-2">
+                <div className="flex flex-col">
+                  <dt className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Process</dt>
+                  <dd className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {getDisplayName(processOptions, viewingJoining.process)}
+                  </dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Salary</dt>
+                  <dd className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    ₹{viewingJoining.salary}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+          
+          <div className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+            <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-[#e2692c]' : 'text-[#1a5d96]'}`}>
+              Joining Information
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Joining Date:</span>
+                <span className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {viewingJoining.joiningDate ? new Date(viewingJoining.joiningDate).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  }) : "Not specified"}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Status:</span>
+                <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(viewingJoining.status)} inline-block mt-1 w-fit`}>
+                  {getDisplayName(statusOptions, viewingJoining.status)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                handleEdit(viewingJoining.id);
+                setShowViewModal(false);
+              }}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                darkMode 
+                  ? 'bg-[#e2692c] hover:bg-[#d15a20] text-white' 
+                  : 'bg-[#1a5d96] hover:bg-[#154a7a] text-white'
+              }`}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setShowViewModal(false)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                darkMode 
+                  ? 'bg-gray-600 hover:bg-gray-700 text-white' 
+                  : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+              }`}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Get current joinings for pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentJoinings = filteredJoinings.slice(indexOfFirstItem, indexOfLastItem);
+  
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  
+  // Add pagination component
+  const Pagination = () => {
+    const pageNumbers = [];
+    for (let i = 1; i <= Math.ceil(filteredJoinings.length / itemsPerPage); i++) {
+      pageNumbers.push(i);
+    }
+    
+    // Reset to first page when filters change
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [filters, searchQuery, dateRangeStart, dateRangeEnd]);
+    
+    if (pageNumbers.length <= 1) return null;
+    
+    return (
+      <nav className="mt-4">
+        <ul className="flex justify-center space-x-1">
+          <li>
+            <button
+              onClick={() => currentPage > 1 && paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-md ${
+                darkMode
+                  ? currentPage === 1 ? "bg-gray-700 text-gray-400" : "bg-gray-600 hover:bg-gray-500 text-white"
+                  : currentPage === 1 ? "bg-gray-200 text-gray-400" : "bg-gray-300 hover:bg-gray-400 text-gray-700"
+              } transition duration-150 ease-in-out`}
+            >
+              Prev
+            </button>
+          </li>
+          {pageNumbers.map(number => (
+            <li key={number}>
+              <button
+                onClick={() => paginate(number)}
+                className={`px-3 py-1 rounded-md ${
+                  currentPage === number
+                    ? darkMode
+                      ? "bg-[#e2692c] text-white"
+                      : "bg-[#1a5d96] text-white"
+                    : darkMode
+                      ? "bg-gray-700 hover:bg-gray-600 text-white"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                } transition duration-150 ease-in-out`}
+              >
+                {number}
+              </button>
+            </li>
+          ))}
+          <li>
+            <button
+              onClick={() => currentPage < pageNumbers.length && paginate(currentPage + 1)}
+              disabled={currentPage === pageNumbers.length}
+              className={`px-3 py-1 rounded-md ${
+                darkMode
+                  ? currentPage === pageNumbers.length ? "bg-gray-700 text-gray-400" : "bg-gray-600 hover:bg-gray-500 text-white"
+                  : currentPage === pageNumbers.length ? "bg-gray-200 text-gray-400" : "bg-gray-300 hover:bg-gray-400 text-gray-700"
+              } transition duration-150 ease-in-out`}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+        <div className="text-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredJoinings.length)} of {filteredJoinings.length} items
+        </div>
+      </nav>
+    );
+  };
+
+  // Render table
+  const renderTable = () => {
+    return (
+      <div className={`rounded-lg shadow-md overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Candidate</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Company</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Process</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Salary</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Joining Date</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${darkMode ? "text-white" : "text-gray-800"}`}>
+              {currentJoinings.length > 0 ? (
+                currentJoinings.map((joining, index) => (
+                  <tr 
+                    key={joining.id} 
+                    className={`${index % 2 === 0 ? (darkMode ? "bg-gray-800" : "bg-white") : (darkMode ? "bg-gray-700" : "bg-gray-50")}`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="ml-4">
+                          <div className="text-sm font-medium">{joining.candidateName}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{joining.contactNumber}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getDisplayName(companyOptions, joining.company)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getDisplayName(processOptions, joining.process)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      ₹{joining.salary}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {joining.joiningDate ? new Date(joining.joiningDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : "Not specified"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(joining.status)}`}>
+                        {getDisplayName(statusOptions, joining.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                      <button
+                        onClick={() => handleView(joining)}
+                        className={`px-3 py-1 rounded-md ${
+                          darkMode
+                            ? "bg-gray-600 hover:bg-gray-500 text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                        } transition duration-150 ease-in-out`}
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleEdit(joining.id)}
+                        className={`px-3 py-1 rounded-md ${
+                          darkMode
+                            ? "bg-[#e2692c] hover:bg-[#d15a20] text-white"
+                            : "bg-[#1a5d96] hover:bg-[#154a7a] text-white"
+                        } transition duration-150 ease-in-out`}
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-4 text-center text-sm font-medium">
+                    No joinings found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`p-6 ${darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-800"} rounded-xl shadow-md transition-colors duration-200`}>
+      <div className="flex flex-col space-y-4">
+        <h1 className="text-3xl font-bold mb-6">Joinings</h1>
+
+        {/* Search and Actions Bar */}
+        <div className="flex flex-wrap gap-4 items-center mb-4 sm:mb-0">
+          {/* Search Bar */}
+          <div className={`relative flex-grow max-w-md ${darkMode ? 'text-white' : 'text-gray-600'}`}>
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <FaSearch className="w-5 h-5 text-gray-400" />
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or phone number..."
+              className={`w-full pl-10 pr-4 py-2 rounded-lg ${
+                darkMode 
+                  ? 'bg-gray-800 border-gray-700 placeholder-gray-400 text-white' 
+                  : 'bg-gray-50 border-gray-300 placeholder-gray-500 text-gray-900'
+              } border focus:outline-none focus:ring-2 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 flex items-center pr-3"
+              >
+                <MdClear className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
+
+          {/* Add New Joining Button */}
+          <button
+            onClick={() => {
+              setFormData({
+                candidateName: "",
+                contactNumber: "",
+                company: "",
+                process: "",
+                salary: "",
+                joiningDate: "",
+                status: ""
+              });
+              setEditingId(null);
+              setShowForm(true);
+            }}
+            className={`inline-flex items-center px-4 py-2 rounded-lg text-white ${
+              darkMode ? 'bg-[#e2692c] hover:bg-[#d15a20]' : 'bg-[#1a5d96] hover:bg-[#154a7a]'
+            } shadow-md transition-colors duration-200`}
+          >
+            <FaPlus className="mr-2" />
+            <span>Add New Joining</span>
+          </button>
+
+          {/* Filter Button */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center px-4 py-2 rounded-lg ${
+              darkMode 
+                ? (showFilters ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white')
+                : (showFilters ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800')
+            } shadow-md transition-colors duration-200`}
+          >
+            <FaFilter className="mr-2" />
+            <span>Filters</span>
+          </button>
+        </div>
+
+        {/* Filter Options */}
+        {showFilters && (
+          <div className={`p-4 mb-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'} transition-colors duration-200`}>
+            <div className="flex flex-nowrap items-end gap-3 overflow-x-auto pb-2">
+              <div className="flex-none min-w-[150px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Company
+                </label>
+                <select
+                  name="company"
+                  value={filters.company}
+                  onChange={handleFilterChange}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                >
+                  <option value="">All Companies</option>
+                  {companyOptions.filter(opt => opt.value).map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-none min-w-[150px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Process
+                </label>
+                <select
+                  name="process"
+                  value={filters.process}
+                  onChange={handleFilterChange}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                >
+                  <option value="">All Processes</option>
+                  {processOptions.filter(opt => opt.value).map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-none min-w-[150px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                >
+                  <option value="">All Statuses</option>
+                  {statusOptions.filter(opt => opt.value).map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-none min-w-[120px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Date Type
+                </label>
+                <select
+                  value={dateFilterType}
+                  onChange={(e) => setDateFilterType(e.target.value)}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                >
+                  <option value="day">By Day</option>
+                  <option value="month">By Month</option>
+                  <option value="year">By Year</option>
+                </select>
+              </div>
+              <div className="flex-none min-w-[130px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  From Date
+                </label>
+                <input
+                  type={dateFilterType === 'day' ? 'date' : (dateFilterType === 'month' ? 'month' : 'text')}
+                  value={dateRangeStart}
+                  onChange={(e) => setDateRangeStart(e.target.value)}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                  placeholder={dateFilterType === 'year' ? "Start year" : ""}
+                />
+              </div>
+              <div className="flex-none min-w-[130px]">
+                <label className={`block mb-1 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  To Date
+                </label>
+                <input
+                  type={dateFilterType === 'day' ? 'date' : (dateFilterType === 'month' ? 'month' : 'text')}
+                  value={dateRangeEnd}
+                  onChange={(e) => setDateRangeEnd(e.target.value)}
+                  className={`w-full px-2.5 py-1.5 text-sm rounded-md border ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-1 ${darkMode ? 'focus:ring-[#e2692c]' : 'focus:ring-[#1a5d96]'} transition-colors duration-200`}
+                  placeholder={dateFilterType === 'year' ? "End year" : ""}
+                />
+              </div>
+              <div className="flex-none">
+                <button
+                  onClick={resetFilters}
+                  className={`px-3 py-1.5 rounded-md text-sm ${
+                    darkMode 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <FaTimesCircle className="mr-1 inline" />
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Add/Edit Joining Form */}
+        {showForm && (
+          <div className={`mb-8 rounded-lg shadow-lg overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} p-6`}>
+            <h2 className={`text-xl font-semibold mb-4 ${darkMode ? "text-[#e2692c]" : "text-[#1a5d96]"}`}>
+              {editingId ? "Edit Joining" : "Add New Joining"}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Candidate Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="candidateName"
+                    value={formData.candidateName}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Contact Number *
+                  </label>
+                  <input
+                    type="tel"
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Company *
+                  </label>
+                  <select
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                  >
+                    {companyOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Process *
+                  </label>
+                  <select
+                    name="process"
+                    value={formData.process}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                  >
+                    {processOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Salary
+                  </label>
+                  <input
+                    type="text"
+                    name="salary"
+                    value={formData.salary}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Joining Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="joiningDate"
+                    value={formData.joiningDate}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Status *
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 rounded-md border ${
+                      darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 ${darkMode ? "focus:ring-[#e2692c]" : "focus:ring-[#1a5d96]"}`}
+                    required
+                  >
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className={`px-4 py-2 rounded-md ${
+                    darkMode
+                      ? "bg-gray-600 hover:bg-gray-500 text-white"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                  } transition duration-150 ease-in-out`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-2 rounded-md ${
+                    darkMode
+                      ? "bg-[#e2692c] hover:bg-[#d15a20] text-white"
+                      : "bg-[#1a5d96] hover:bg-[#154a7a] text-white"
+                  } transition duration-150 ease-in-out`}
+                >
+                  {editingId ? "Update" : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="overflow-y-auto">
+          {renderTable()}
+          <Pagination />
+        </div>
+      </div>
+      
+      {showViewModal && <ViewModal />}
+    </div>
+  );
+}
+
+export default Joinings;
